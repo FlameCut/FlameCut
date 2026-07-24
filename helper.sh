@@ -13,7 +13,7 @@ yes_arg() {
 
 first_arg_check() {
     case "$1" in
-        build|testing|package|setup|test) return 0 ;;
+        build|testing|package|setup|test|dev) return 0 ;;
         *) echo -e "${RED}Error:${RESET} Invalid Action '$1'"; return 1 ;;
     esac
 }
@@ -32,6 +32,7 @@ if no_arg "$@"; then
     echo "${TAB}package - Packing the resources"
     echo "${TAB}setup - Setup project files"
     echo "${TAB}test - Start the testing"
+    echo "${TAB}dev - Start the build executable"
     echo ""
     echo "Arguments:"
     exit 0
