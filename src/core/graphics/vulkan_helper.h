@@ -12,6 +12,9 @@ namespace core::graphics {
 
     void check_vk_result(VkResult err);
     bool is_extension_available(const std::vector<VkExtensionProperties>& properties, const char* extension);
+#ifdef APP_USE_VULKAN_DEBUG_REPORT
+    VKAPI_ATTR VkBool32 VKAPI_CALL debug_report(VkDebugReportFlagsEXT flags, VkDebugReportObjectTypeEXT objectType, uint64_t object, size_t location, int32_t messageCode, const char* pLayerPrefix, const char* pMessage, void* pUserData);
+#endif
 
     std::vector<const char*> vulkan_get_extensions();
     void vulkan_setup_vulkan(editor::window_base_data& data, std::vector<const char*> instance_extensions);

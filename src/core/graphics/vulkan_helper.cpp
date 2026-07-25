@@ -11,7 +11,7 @@ namespace core::graphics {
         if (err == VK_SUCCESS) {
             return;
         }
-        spdlog::error("[vulkan] Error: VkResult = {}", err);
+        spdlog::error("[vulkan] Error: VkResult = {}", std::to_string(err));
         if (err < 0) {
             abort();
         }
@@ -24,6 +24,15 @@ namespace core::graphics {
                 return true;
         return false;
     }
+
+#ifdef APP_USE_VULKAN_DEBUG_REPORT
+    VKAPI_ATTR VkBool32 VKAPI_CALL debug_report(VkDebugReportFlagsEXT flags, VkDebugReportObjectTypeEXT objectType, uint64_t object, size_t location, int32_t messageCode, const char* pLayerPrefix, const char* pMessage, void* pUserData)
+    {
+        (void)flags; (void)object; (void)location; (void)messageCode; (void)pUserData; (void)pLayerPrefix; // Unused arguments
+        fprintf(stderr, "[vulkan] Debug report from ObjectType: %i\nMessage: %s\n\n", objectType, pMessage);
+        return VK_FALSE;
+    }
+#endif // APP_USE_VULKAN_DEBUG_REPORT
 
     std::vector<const char*> vulkan_get_extensions() {
         std::vector<const char*> extensions = std::vector<const char*>();
@@ -247,7 +256,7 @@ namespace core::graphics {
 
     void vulkan_cleanup_vulkan(editor::window_base_data& data)
     {
-        vkDestroyDescriptorPool(g_Device, g_DescriptorPool, g_Allocator);
+        vkDestroyDescriptorPool(data.g_Device, data.g_DescriptorPool, data.g_Allocator);
 
     #ifdef APP_USE_VULKAN_DEBUG_REPORT
         // Remove the debug report callback
@@ -255,23 +264,23 @@ namespace core::graphics {
         f_vkDestroyDebugReportCallbackEXT(g_Instance, g_DebugReport, g_Allocator);
     #endif // APP_USE_VULKAN_DEBUG_REPORT
 
-        vkDestroyDevice(g_Device, g_Allocator);
-        vkDestroyInstance(g_Instance, g_Allocator);
+        vkDestroyDevice(data.g_Device, data.g_Allocator);
+        vkDestroyInstance(data.g_Instance, data.g_Allocator);
     }
 
     void vulkan_cleanup_window(editor::window_base_data& data, ImGui_ImplVulkanH_Window* wd)
     {
-        ImGui_ImplVulkanH_DestroyWindow(g_Instance, g_Device, wd, g_Allocator);
-        vkDestroySurfaceKHR(g_Instance, wd->Surface, g_Allocator);
+        ImGui_ImplVulkanH_DestroyWindow(data.g_Instance, data.g_Device, wd, data.g_Allocator);
+        vkDestroySurfaceKHR(data.g_Instance, wd->Surface, data.g_Allocator);
     }
 
     void vulkan_frame_render(editor::window_base_data& data, ImGui_ImplVulkanH_Window* wd, ImDrawData* draw_data)
     {
         VkSemaphore image_acquired_semaphore  = wd->FrameSemaphores[wd->SemaphoreIndex].ImageAcquiredSemaphore;
         VkSemaphore render_complete_semaphore = wd->FrameSemaphores[wd->SemaphoreIndex].RenderCompleteSemaphore;
-        VkResult err = vkAcquireNextImageKHR(g_Device, wd->Swapchain, UINT64_MAX, image_acquired_semaphore, VK_NULL_HANDLE, &wd->FrameIndex);
+        VkResult err = vkAcquireNextImageKHR(data.g_Device, wd->Swapchain, UINT64_MAX, image_acquired_semaphore, VK_NULL_HANDLE, &wd->FrameIndex);
         if (err == VK_ERROR_OUT_OF_DATE_KHR || err == VK_SUBOPTIMAL_KHR)
-            g_SwapChainRebuild = true;
+            data.g_SwapChainRebuild = true;
         if (err == VK_ERROR_OUT_OF_DATE_KHR)
             return;
         if (err != VK_SUBOPTIMAL_KHR)
@@ -279,14 +288,14 @@ namespace core::graphics {
 
         ImGui_ImplVulkanH_Frame* fd = &wd->Frames[wd->FrameIndex];
         {
-            err = vkWaitForFences(g_Device, 1, &fd->Fence, VK_TRUE, UINT64_MAX);    // wait indefinitely instead of periodically checking
+            err = vkWaitForFences(data.g_Device, 1, &fd->Fence, VK_TRUE, UINT64_MAX);    // wait indefinitely instead of periodically checking
             check_vk_result(err);
 
-            err = vkResetFences(g_Device, 1, &fd->Fence);
+            err = vkResetFences(data.g_Device, 1, &fd->Fence);
             check_vk_result(err);
         }
         {
-            err = vkResetCommandPool(g_Device, fd->CommandPool, 0);
+            err = vkResetCommandPool(data.g_Device, fd->CommandPool, 0);
             check_vk_result(err);
             VkCommandBufferBeginInfo info = {};
             info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
@@ -325,14 +334,14 @@ namespace core::graphics {
 
             err = vkEndCommandBuffer(fd->CommandBuffer);
             check_vk_result(err);
-            err = vkQueueSubmit(g_Queue, 1, &info, fd->Fence);
+            err = vkQueueSubmit(data.g_Queue, 1, &info, fd->Fence);
             check_vk_result(err);
         }
     }
 
     void vulkan_frame_present(editor::window_base_data& data, ImGui_ImplVulkanH_Window* wd)
     {
-        if (g_SwapChainRebuild)
+        if (data.g_SwapChainRebuild)
             return;
         VkSemaphore render_complete_semaphore = wd->FrameSemaphores[wd->SemaphoreIndex].RenderCompleteSemaphore;
         VkPresentInfoKHR info = {};
@@ -342,9 +351,9 @@ namespace core::graphics {
         info.swapchainCount = 1;
         info.pSwapchains = &wd->Swapchain;
         info.pImageIndices = &wd->FrameIndex;
-        VkResult err = vkQueuePresentKHR(g_Queue, &info);
+        VkResult err = vkQueuePresentKHR(data.g_Queue, &info);
         if (err == VK_ERROR_OUT_OF_DATE_KHR || err == VK_SUBOPTIMAL_KHR)
-            g_SwapChainRebuild = true;
+            data.g_SwapChainRebuild = true;
         if (err == VK_ERROR_OUT_OF_DATE_KHR)
             return;
         if (err != VK_SUBOPTIMAL_KHR)

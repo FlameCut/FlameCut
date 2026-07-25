@@ -8,6 +8,12 @@
 namespace editor {
 
     int32_t window_init_start(window_init_data& data) {
+        if (!SDL_Init(SDL_INIT_VIDEO | SDL_INIT_GAMEPAD))
+        {
+            spdlog::error("Error: SDL_Init(): {}", SDL_GetError());
+            return 1;
+        }
+        
         float main_scale = SDL_GetDisplayContentScale(SDL_GetPrimaryDisplay());
         data.window = SDL_CreateWindow("Welcome Flamecut", (int)(1280 * main_scale), (int)(800 * main_scale), window_init_flag);
 
@@ -144,6 +150,8 @@ namespace editor {
 
         core::graphics::vulkan_cleanup_window(data, &data.g_MainWindowData);
         core::graphics::vulkan_cleanup_vulkan(data);
+        SDL_DestroyWindow(data.window);
+        SDL_Quit();
         return 0;
     }
 

@@ -55,25 +55,12 @@ static ImGui_ImplVulkanH_Window g_MainWindowData;
 static uint32_t                 g_MinImageCount = 2;
 static bool                     g_SwapChainRebuild = false;
 
-#ifdef APP_USE_VULKAN_DEBUG_REPORT
-static VKAPI_ATTR VkBool32 VKAPI_CALL debug_report(VkDebugReportFlagsEXT flags, VkDebugReportObjectTypeEXT objectType, uint64_t object, size_t location, int32_t messageCode, const char* pLayerPrefix, const char* pMessage, void* pUserData)
-{
-    (void)flags; (void)object; (void)location; (void)messageCode; (void)pUserData; (void)pLayerPrefix; // Unused arguments
-    fprintf(stderr, "[vulkan] Debug report from ObjectType: %i\nMessage: %s\n\n", objectType, pMessage);
-    return VK_FALSE;
-}
-#endif // APP_USE_VULKAN_DEBUG_REPORT
+
 
 
 // Main code
 int main(int argc, char** args)
 {
-    if (!SDL_Init(SDL_INIT_VIDEO | SDL_INIT_GAMEPAD))
-    {
-        spdlog::error("Error: SDL_Init(): {}", SDL_GetError());
-        return 1;
-    }
-
     {
         int32_t r = 0;
         editor::window_init_data d = editor::window_init_data();
@@ -91,26 +78,6 @@ int main(int argc, char** args)
         editor::window_main_run();
         editor::window_main_end();
     }
-
-    // Our state
-    
-
-    // Main loop
-    
-
-    // Cleanup
-    // [If using SDL_MAIN_USE_CALLBACKS: all code below would likely be your SDL_AppQuit() function]
-    err = vkDeviceWaitIdle(g_Device);
-    check_vk_result(err);
-    ImGui_ImplVulkan_Shutdown();
-    ImGui_ImplSDL3_Shutdown();
-    ImGui::DestroyContext();
-
-    CleanupVulkanWindow(&g_MainWindowData);
-    CleanupVulkan();
-
-    SDL_DestroyWindow(window);
-    SDL_Quit();
 
     return 0;
 }
