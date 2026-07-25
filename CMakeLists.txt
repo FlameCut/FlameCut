@@ -11,6 +11,8 @@ enable_testing()
 find_package(Vulkan REQUIRED)
 
 add_subdirectory("${CMAKE_SOURCE_DIR}/lib/SDL3-3.4.12" EXCLUDE_FROM_ALL)
+add_subdirectory("${CMAKE_SOURCE_DIR}/lib/spdlog-1.17.0" EXCLUDE_FROM_ALL)
+add_subdirectory("${CMAKE_SOURCE_DIR}/lib/stduuid-1.2.3" EXCLUDE_FROM_ALL)
 
 set(FFMPEG_LOCAL_DIR "${CMAKE_SOURCE_DIR}/lib/ffmpeg-9.0/dist")
 find_library(AVCODEC_LIB NAMES avcodec PATHS "${FFMPEG_LOCAL_DIR}/lib" NO_DEFAULT_PATH REQUIRED)
@@ -43,12 +45,16 @@ target_include_directories(flamecut_app PRIVATE
     "${CMAKE_SOURCE_DIR}/lib/imgui-1.92.8/misc/cpp"
     "${CMAKE_SOURCE_DIR}/lib/imgui-1.92.8/misc/freetype"
     "${CMAKE_SOURCE_DIR}/lib/imgui-1.92.8/backends"
+    "${CMAKE_SOURCE_DIR}/stduuid-1.2.3/include"
+    "${CMAKE_SOURCE_DIR}/spdlog-1.17.0/include"
     "${FFMPEG_LOCAL_DIR}/include"
 )
 
 target_link_libraries(flamecut_app 
     SDL3
     Vulkan::Vulkan
+    stduuid
+    spdlog
     ${AVCODEC_LIB}
     ${AVDEVICE_LIB}
     ${AVFILTER_LIB}

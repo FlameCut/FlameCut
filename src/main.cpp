@@ -20,6 +20,9 @@
 #include <stdlib.h>         // abort
 #include <SDL3/SDL.h>
 #include <SDL3/SDL_vulkan.h>
+#include <spdlog/spdlog.h>
+#include "editor/init_frame.h"
+#include "editor/main_frame.h"
 
 // This example doesn't compile with Emscripten yet! Awaiting SDL3 support.
 #ifdef __EMSCRIPTEN__
@@ -345,13 +348,19 @@ static void FramePresent(ImGui_ImplVulkanH_Window* wd)
 // Main code
 int main(int argc, char** args)
 {
-    // Setup SDL
-    // [If using SDL_MAIN_USE_CALLBACKS: all code below until the main loop starts would likely be your SDL_AppInit() function]
     if (!SDL_Init(SDL_INIT_VIDEO | SDL_INIT_GAMEPAD))
     {
-        printf("Error: SDL_Init(): %s\n", SDL_GetError());
+        spdlog::error("Error: SDL_Init(): {}", SDL_GetError());
         return 1;
     }
+
+    editor::window_init_start();
+    editor::window_init_run();
+    editor::window_init_end();
+
+    editor::window_main_start();
+    editor::window_main_run();
+    editor::window_main_end();
 
     // Create window with Vulkan graphics context
     float main_scale = SDL_GetDisplayContentScale(SDL_GetPrimaryDisplay());
