@@ -18,64 +18,27 @@ namespace editor {
         }
 
         auto extendsions = core::graphics::vulkan_get_extensions();
-        core::graphics::vulkan_setup_vulkan(data, extendsions);
-
         VkSurfaceKHR surface;
         VkResult err;
-        if (SDL_Vulkan_CreateSurface(data.window, data.g_Instance, data.g_Allocator, &surface) == 0)
-        {
-            printf("Failed to create Vulkan surface.\n");
-            return 1;
-        }
-
-        // Create Framebuffers
+        int32_t ferr;
         int w, h;
-        SDL_GetWindowSize(data.window, &w, &h);
-        ImGui_ImplVulkanH_Window* wd = &data.g_MainWindowData;
-        SetupVulkanWindow(wd, surface, w, h);
-        SDL_SetWindowPosition(data.window, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED);
-        SDL_ShowWindow(data.window);
 
-        // Setup Dear ImGui context
-        IMGUI_CHECKVERSION();
-        ImGui::CreateContext();
-        ImGuiIO& io = ImGui::GetIO(); (void)io;
-        io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;     // Enable Keyboard Controls
-        io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;      // Enable Gamepad Controls
-
-        // Setup Dear ImGui style
-        ImGui::StyleColorsDark();
-        //ImGui::StyleColorsLight();
-
-        // Setup scaling
-        ImGuiStyle& style = ImGui::GetStyle();
-        style.ScaleAllSizes(main_scale);        // Bake a fixed style scale. (until we have a solution for dynamic style scaling, changing this requires resetting Style + calling this again)
-        style.FontScaleDpi = main_scale;        // Set initial font scale. (in docking branch: using io.ConfigDpiScaleFonts=true automatically overrides this for every window depending on the current monitor)
-
-        // Setup Platform/Renderer backends
-        ImGui_ImplSDL3_InitForVulkan(data.window);
-        ImGui_ImplVulkan_InitInfo init_info = {};
-        //init_info.ApiVersion = VK_API_VERSION_1_3;              // Pass in your value of VkApplicationInfo::apiVersion, otherwise will default to header version.
-        init_info.Instance = data.g_Instance;
-        init_info.PhysicalDevice = data.g_PhysicalDevice;
-        init_info.Device = data.g_Device;
-        init_info.QueueFamily = data.g_QueueFamily;
-        init_info.Queue = data.g_Queue;
-        init_info.PipelineCache = data.g_PipelineCache;
-        init_info.DescriptorPool = data.g_DescriptorPool;
-        init_info.MinImageCount = data.g_MinImageCount;
-        init_info.ImageCount = wd->ImageCount;
-        init_info.Allocator = data.g_Allocator;
-        init_info.PipelineInfoMain.RenderPass = wd->RenderPass;
-        init_info.PipelineInfoMain.Subpass = 0;
-        init_info.PipelineInfoMain.MSAASamples = VK_SAMPLE_COUNT_1_BIT;
-        init_info.CheckVkResultFn = core::graphics::check_vk_result;
-        ImGui_ImplVulkan_Init(&init_info);
+        core::graphics::vulkan_setup_vulkan(data, extendsions);
+        ferr = core::graphics::vulkan_surface_bind(data, surface);
+        if(ferr != 0) return ferr;
+        core::graphics::vulkan_framebuffer_init(data, surface, w, h);
+        core::graphics::vulkan_imgui_init(data, &data.g_MainWindowData, main_scale, surface);
 
         return 0;
     }
 
     int32_t window_init_run(window_init_data& data) {
+        ImGuiIO& io = ImGui::GetIO(); (void)io;
+        
+        bool show_demo_window = true;
+        bool show_another_window = false;
+        ImVec4 clear_color = ImVec4(0.45f, 0.55f, 0.60f, 1.00f);
+
         bool done = false;
         while (!done)
         {
@@ -91,12 +54,12 @@ namespace editor {
                 ImGui_ImplSDL3_ProcessEvent(&event);
                 if (event.type == SDL_EVENT_QUIT)
                     done = true;
-                if (event.type == SDL_EVENT_WINDOW_CLOSE_REQUESTED && event.window.windowID == SDL_GetWindowID(window))
+                if (event.type == SDL_EVENT_WINDOW_CLOSE_REQUESTED && event.window.windowID == SDL_GetWindowID(data.window))
                     done = true;
             }
 
             // [If using SDL_MAIN_USE_CALLBACKS: all code below would likely be your SDL_AppIterate() function]
-            if (SDL_GetWindowFlags(window) & SDL_WINDOW_MINIMIZED)
+            if (SDL_GetWindowFlags(data.window) & SDL_WINDOW_MINIMIZED)
             {
                 SDL_Delay(10);
                 continue;
@@ -104,13 +67,13 @@ namespace editor {
 
             // Resize swap chain?
             int fb_width, fb_height;
-            SDL_GetWindowSize(window, &fb_width, &fb_height);
-            if (fb_width > 0 && fb_height > 0 && (g_SwapChainRebuild || g_MainWindowData.Width != fb_width || g_MainWindowData.Height != fb_height))
+            SDL_GetWindowSize(data.window, &fb_width, &fb_height);
+            if (fb_width > 0 && fb_height > 0 && (data.g_SwapChainRebuild || data.g_MainWindowData.Width != fb_width || data.g_MainWindowData.Height != fb_height))
             {
-                ImGui_ImplVulkan_SetMinImageCount(g_MinImageCount);
-                ImGui_ImplVulkanH_CreateOrResizeWindow(g_Instance, g_PhysicalDevice, g_Device, wd, g_QueueFamily, g_Allocator, fb_width, fb_height, g_MinImageCount, 0);
-                g_MainWindowData.FrameIndex = 0;
-                g_SwapChainRebuild = false;
+                ImGui_ImplVulkan_SetMinImageCount(data.g_MinImageCount);
+                ImGui_ImplVulkanH_CreateOrResizeWindow(data.g_Instance, data.g_PhysicalDevice, data.g_Device, &data.g_MainWindowData, data.g_QueueFamily, data.g_Allocator, fb_width, fb_height, data.g_MinImageCount, 0);
+                data.g_MainWindowData.FrameIndex = 0;
+                data.g_SwapChainRebuild = false;
             }
 
             // Start the Dear ImGui frame
@@ -161,25 +124,27 @@ namespace editor {
             const bool is_minimized = (draw_data->DisplaySize.x <= 0.0f || draw_data->DisplaySize.y <= 0.0f);
             if (!is_minimized)
             {
-                wd->ClearValue.color.float32[0] = clear_color.x * clear_color.w;
-                wd->ClearValue.color.float32[1] = clear_color.y * clear_color.w;
-                wd->ClearValue.color.float32[2] = clear_color.z * clear_color.w;
-                wd->ClearValue.color.float32[3] = clear_color.w;
-                FrameRender(wd, draw_data);
-                FramePresent(wd);
+                data.g_MainWindowData.ClearValue.color.float32[0] = clear_color.x * clear_color.w;
+                data.g_MainWindowData.ClearValue.color.float32[1] = clear_color.y * clear_color.w;
+                data.g_MainWindowData.ClearValue.color.float32[2] = clear_color.z * clear_color.w;
+                data.g_MainWindowData.ClearValue.color.float32[3] = clear_color.w;
+                core::graphics::vulkan_frame_render(data, &data.g_MainWindowData, draw_data);
+                core::graphics::vulkan_frame_present(data, &data.g_MainWindowData);
             }
         }
+        return 0;
     }
 
     int32_t window_init_end(window_init_data& data) {
-        err = vkDeviceWaitIdle(g_Device);
-        check_vk_result(err);
+        VkResult err = vkDeviceWaitIdle(data.g_Device);
+        core::graphics::check_vk_result(err);
         ImGui_ImplVulkan_Shutdown();
         ImGui_ImplSDL3_Shutdown();
         ImGui::DestroyContext();
 
-        CleanupVulkanWindow(&g_MainWindowData);
-        CleanupVulkan();
+        core::graphics::vulkan_cleanup_window(data, &data.g_MainWindowData);
+        core::graphics::vulkan_cleanup_vulkan(data);
+        return 0;
     }
 
 }
