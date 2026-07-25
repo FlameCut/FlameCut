@@ -12,6 +12,15 @@ find_package(Vulkan REQUIRED)
 
 add_subdirectory("${CMAKE_SOURCE_DIR}/lib/SDL3-3.4.12" EXCLUDE_FROM_ALL)
 
+set(FFMPEG_LOCAL_DIR "${CMAKE_SOURCE_DIR}/lib/ffmpeg-9.0/dist")
+find_library(AVCODEC_LIB NAMES avcodec PATHS "${FFMPEG_LOCAL_DIR}/lib" NO_DEFAULT_PATH REQUIRED)
+find_library(AVDEVICE_LIB NAMES avdevice PATHS "${FFMPEG_LOCAL_DIR}/lib" NO_DEFAULT_PATH REQUIRED)
+find_library(AVFILTER_LIB NAMES avfilter PATHS "${FFMPEG_LOCAL_DIR}/lib" NO_DEFAULT_PATH REQUIRED)
+find_library(AVFORMAT_LIB NAMES avformat PATHS "${FFMPEG_LOCAL_DIR}/lib" NO_DEFAULT_PATH REQUIRED)
+find_library(AVUTIL_LIB NAMES avutil PATHS "${FFMPEG_LOCAL_DIR}/lib" NO_DEFAULT_PATH REQUIRED)
+find_library(SWRESAMPLE_LIB NAMES swresample PATHS "${FFMPEG_LOCAL_DIR}/lib" NO_DEFAULT_PATH REQUIRED)
+find_library(SWSCALE_LIB NAMES swscale PATHS "${FFMPEG_LOCAL_DIR}/lib" NO_DEFAULT_PATH REQUIRED)
+
 file(GLOB_RECURSE FLAME_SOURCE 
     "${CMAKE_SOURCE_DIR}/src/*.h" 
     "${CMAKE_SOURCE_DIR}/src/*.hpp" 
@@ -27,16 +36,24 @@ add_executable(flamecut_app
     ${IMGUI_SOURCE}
 )
 
-target_include_directories(flamecut_app PUBLIC
+target_include_directories(flamecut_app PRIVATE
     "${CMAKE_SOURCE_DIR}/src"
     "${CMAKE_SOURCE_DIR}/lib/SDL3-3.4.12/include"
     "${CMAKE_SOURCE_DIR}/lib/imgui-1.92.8"
     "${CMAKE_SOURCE_DIR}/lib/imgui-1.92.8/misc/cpp"
     "${CMAKE_SOURCE_DIR}/lib/imgui-1.92.8/misc/freetype"
     "${CMAKE_SOURCE_DIR}/lib/imgui-1.92.8/backends"
+    "${FFMPEG_LOCAL_DIR}/include"
 )
 
 target_link_libraries(flamecut_app 
     SDL3
     Vulkan::Vulkan
+    ${AVCODEC_LIB}
+    ${AVDEVICE_LIB}
+    ${AVFILTER_LIB}
+    ${AVFORMAT_LIB}
+    ${AVUTIL_LIB}
+    ${SWRESAMPLE_LIB}
+    ${SWSCALE_LIB}
 )
