@@ -5,7 +5,7 @@
 namespace core::structure {
     
     struct global_app_context {
-        bool init;
+        
     };
 
     void global_app_context_init(global_app_context& ctx);
